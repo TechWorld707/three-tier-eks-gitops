@@ -1,0 +1,30 @@
+# Secret and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Kubernetes files containing local secret values
+*-secret.yaml
+*-secret.yml
+secrets/
+
+# Locally rendered manifests
+rendered/
+*.rendered.yaml
+*.rendered.yml
+
+# Helm dependencies and packages
+**/charts/
+*.tgz
+
+# Temporary files
+*.tmp
+*.log
+
+# IDE and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
