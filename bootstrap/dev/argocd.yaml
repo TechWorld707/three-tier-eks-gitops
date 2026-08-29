@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: three-tier
+  namespace: argocd
+spec:
+  description: Three-tier development application
+  sourceRepos:
+    - https://github.com/TechWorld707/three-tier-eks-gitops.git
+  destinations:
+    - namespace: three-tier-dev
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: three-tier-dev
+  namespace: argocd
+spec:
+  project: three-tier
+  source:
+    repoURL: https://github.com/TechWorld707/three-tier-eks-gitops.git
+    targetRevision: main
+    path: apps/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: three-tier-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
