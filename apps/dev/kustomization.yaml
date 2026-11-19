@@ -3,3 +3,14 @@ kind: Kustomization
 
 resources:
   - stack.yaml
+  - monitoring.yaml
+
+configMapGenerator:
+  - name: three-tier-observability
+    namespace: three-tier-dev
+    files:
+      - three-tier-dashboard.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"

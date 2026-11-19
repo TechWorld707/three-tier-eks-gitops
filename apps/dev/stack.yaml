@@ -232,6 +232,16 @@ spec:
                 secretKeyRef:
                   name: application-database
                   key: database-url
+            - name: OTEL_SERVICE_NAME
+              value: three-tier-backend
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: http://otel-collector.monitoring.svc.cluster.local:4318/v1/traces
+            - name: OTEL_TRACES_SAMPLER
+              value: parentbased_traceidratio
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "0.10"
+            - name: OTEL_PYTHON_FLASK_EXCLUDED_URLS
+              value: '/(health|metrics)(\?.*)?$'
             - name: REDIS_URL
               value: redis://redis:6379/0
           resources:
@@ -264,6 +274,8 @@ kind: Service
 metadata:
   name: backend
   namespace: three-tier-dev
+  labels:
+    app: backend
 spec:
   selector:
     app: backend
