@@ -22,6 +22,8 @@ PostgreSQL Redis
 apps/dev/
   kustomization.yaml
   stack.yaml
+  monitoring.yaml
+  three-tier-dashboard.json
 
 bootstrap/dev/
   argocd.yaml
@@ -34,7 +36,7 @@ bootstrap/dev/
 
 The development environment deploys:
 
-* Two frontend replicas
+* Three frontend replicas
 * Two backend replicas
 * One PostgreSQL replica with persistent storage
 * One Redis replica with ephemeral storage
@@ -105,6 +107,43 @@ kubectl apply -f bootstrap/dev/argocd.yaml
 ```
 
 Argo CD will then deploy and reconcile the resources under `apps/dev`.
+
+## Observability rollout
+
+1. Apply the platform repository's development add-ons before this GitOps change
+   reaches `main`. Confirm the monitoring services and Prometheus Operator CRDs
+   exist with `kubectl -n monitoring get pods,svc` and
+   `kubectl get crd servicemonitors.monitoring.coreos.com probes.monitoring.coreos.com prometheusrules.monitoring.coreos.com`.
+2. Publish the updated frontend and backend images from the application repository.
+   Update both image tags in `apps/dev/stack.yaml` to the published commit SHA.
+3. Merge the GitOps changes and confirm `three-tier-dev` is synced and healthy in
+   Argo CD. Check the backend scrape and frontend probe targets in Prometheus.
+
+Open Grafana locally:
+
+```bash
+kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80
+```
+
+Use the `admin-user` and `admin-password` keys in the `monitoring-grafana` Secret
+to sign in at `http://localhost:3000`. Open **Three-tier development**. Set the ALB
+and target group filters to their ARN suffixes for app-specific CloudWatch panels.
+The HTTP availability probe measures the internal frontend Service. The database
+panels use SQLAlchemy pool metrics for the PostgreSQL instance inside EKS.
+
+Generate traffic through the frontend by submitting test data. Check the Prometheus
+panels, then use CloudWatch Logs Insights on
+`/aws/eks/<cluster-name>/three-tier-dev` to inspect the request:
+
+```text
+fields @timestamp, kubernetes.container_name, request_id, trace_id, status, message
+| filter request_id = "<X-Request-ID from the API response>"
+| sort @timestamp asc
+```
+
+For a sampled request, open Grafana Explore with the Tempo data source and look up
+the backend log's `trace_id` to see the Flask and PostgreSQL spans. Use the
+`/aws/eks/<cluster-name>/cluster` log group for control-plane events.
 
 ## Development limitations
 

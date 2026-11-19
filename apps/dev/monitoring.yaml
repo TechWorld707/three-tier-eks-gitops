@@ -1,0 +1,82 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend
+  namespace: three-tier-dev
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: three-tier-frontend
+  namespace: three-tier-dev
+  labels:
+    release: monitoring
+spec:
+  jobName: three-tier-frontend
+  interval: 30s
+  scrapeTimeout: 10s
+  module: http_2xx
+  prober:
+    url: blackbox.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - http://frontend.three-tier-dev.svc.cluster.local/
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: three-tier
+  namespace: three-tier-dev
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: three-tier
+      rules:
+        - record: three_tier:api_requests:rate5m
+          expr: sum(rate(three_tier_http_requests_total{namespace="three-tier-dev",route=~"/api/.*"}[5m]))
+        - record: three_tier:api_5xx_ratio:rate5m
+          expr: |
+            (sum(rate(three_tier_http_requests_total{namespace="three-tier-dev",route=~"/api/.*",status=~"5.."}[5m]))
+              or 0 * three_tier:api_requests:rate5m)
+            / (three_tier:api_requests:rate5m > 0)
+        - alert: ThreeTierApiHighErrorRate
+          expr: three_tier:api_5xx_ratio:rate5m > 0.05 and three_tier:api_requests:rate5m >= 0.1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Three-tier API 5xx rate exceeds 5%
+            description: The five-minute error ratio has exceeded 5% for ten minutes with at least six requests per minute.
+        - alert: ThreeTierBackendMetricsUnavailable
+          expr: absent(up{namespace="three-tier-dev",service="backend"} == 1)
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Prometheus cannot scrape any backend replica
+        - alert: ThreeTierFrontendUnavailable
+          expr: probe_success{job="three-tier-frontend"} == 0 or absent(probe_success{job="three-tier-frontend"})
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: The in-cluster frontend probe has failed
+        - alert: ThreeTierDatabasePoolTimeouts
+          expr: sum(increase(three_tier_db_pool_checkout_timeouts_total{namespace="three-tier-dev"}[10m])) > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: The API timed out waiting for a database connection
