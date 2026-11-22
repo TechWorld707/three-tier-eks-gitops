@@ -221,7 +221,7 @@ spec:
             - until pg_isready -h postgres -U app -d profiles; do sleep 2; done
       containers:
         - name: backend
-          image: ghcr.io/techworld707/three-tier-backend:sha-2635d925319bd394f3e07b36252e7f7514f726c1
+          image: ghcr.io/techworld707/three-tier-backend:sha-5dff9f6954ca49f980f20811074bcb33ef739e58
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -303,7 +303,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/techworld707/three-tier-frontend:sha-2635d925319bd394f3e07b36252e7f7514f726c1
+          image: ghcr.io/techworld707/three-tier-frontend:sha-5dff9f6954ca49f980f20811074bcb33ef739e58
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
